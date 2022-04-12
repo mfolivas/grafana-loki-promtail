@@ -4,6 +4,7 @@ networks:
 services:
   loki:
     image: grafana/loki:2.4.0
+    container_name: loki
     volumes:
       - ./loki:/etc/loki
     ports:
@@ -26,15 +27,21 @@ services:
               echo "{\"message\": \"log line $$counter\", \"something\": \"else\"}"
               counter=$$(($$counter + 1))
           done'
+    depends_on:
+      - fluentbit
     logging:
       driver: fluentd
   fluentbit:
     image: grafana/fluent-bit-plugin-loki:latest
+    container_name: fluentbit
     ports:
       - "24224:24224/tcp"
       - "24224:24224/udp"
     environment:
       - LOKI_URL=http://loki:3100/loki/api/v1/push
+      - APP_LABEL=log_creator 
+      - POD_NAME=loging
+      - POD_NAMESPACE=default
     volumes:
       - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
     restart: unless-stopped
@@ -42,6 +49,7 @@ services:
       - loki
   grafana:
     image: grafana/grafana:latest
+    container_name: grafana
     user: "1000"
     volumes:
     - ./grafana:/var/lib/grafana
