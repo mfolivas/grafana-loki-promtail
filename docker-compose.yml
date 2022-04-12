@@ -12,15 +12,32 @@ services:
     command: -config.file=/etc/loki/loki-config.yaml
     networks:
       - loki
-  promtail:
-    image: grafana/promtail:2.4.0
+    expose:
+      - "3100"
+  log_creator:
+    image: alpine:3.12.4
+    container_name: log_creator
+    command: >
+      sh -c '
+          counter=0
+          while :
+          do
+              sleep 1
+              echo "{\"message\": \"log line $$counter\", \"something\": \"else\"}"
+              counter=$$(($$counter + 1))
+          done'
+    logging:
+      driver: fluentd
+  fluentbit:
+    image: grafana/fluent-bit-plugin-loki:latest
+    ports:
+      - "24224:24224/tcp"
+      - "24224:24224/udp"
+    environment:
+      - LOKI_URL=http://loki:3100/loki/api/v1/push
     volumes:
-      - /var/log:/var/log
-      - ./promtail:/etc/promtail
-    # ports:
-    #   - "1514:1514" # this is only needed if you are going to send syslogs
+      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
     restart: unless-stopped
-    command: -config.file=/etc/promtail/promtail-config.yml
     networks:
       - loki
   grafana:
